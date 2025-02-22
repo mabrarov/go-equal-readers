@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-func EqualReaders(bufSize int, maxZeroCountReads int, r1 io.Reader, r2 io.Reader) (bool, error) {
+func EqualReaders(bufSize, maxZeroCountReads int, reader1 io.Reader, reader2 io.Reader) (bool, error) {
 	if bufSize <= 0 {
 		return false, errors.New("bufSize must be greater than zero")
 	}
@@ -28,14 +28,14 @@ func EqualReaders(bufSize int, maxZeroCountReads int, r1 io.Reader, r2 io.Reader
 		if !eof1 && free1 < bufSize {
 			readEnd := getReadEnd(bufSize, free1, size1, size2, eof2)
 			var err error
-			read1, err = r1.Read(buf1[free1:readEnd])
+			read1, err = reader1.Read(buf1[free1:readEnd])
 			eof1 = errors.Is(err, io.EOF)
 			if err != nil && !eof1 {
 				return false, err
 			}
 			if read1 == 0 && !eof1 && readEnd-free1 > 0 {
 				if zero1 <= 0 {
-					return false, errors.New("too many reads of zero byte count without EOF in r1")
+					return false, errors.New("too many reads of zero byte count without EOF in reader1")
 				}
 				zero1--
 			}
@@ -46,14 +46,14 @@ func EqualReaders(bufSize int, maxZeroCountReads int, r1 io.Reader, r2 io.Reader
 		if !eof2 && free2 < bufSize {
 			readEnd := getReadEnd(bufSize, free2, size2, size1, eof1)
 			var err error
-			read2, err = r2.Read(buf2[free2:readEnd])
+			read2, err = reader2.Read(buf2[free2:readEnd])
 			eof2 = errors.Is(err, io.EOF)
 			if err != nil && !eof2 {
 				return false, err
 			}
 			if read2 == 0 && !eof2 && readEnd-free2 > 0 {
 				if zero2 <= 0 {
-					return false, errors.New("too many reads of zero byte count without EOF in r2")
+					return false, errors.New("too many reads of zero byte count without EOF in reader2")
 				}
 				zero2--
 			}
