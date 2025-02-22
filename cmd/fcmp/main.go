@@ -9,7 +9,7 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run main.go <file1> <file2>")
+		fmt.Println("Usage: fcmp <file1> <file2>")
 		os.Exit(1)
 	}
 	name1 := os.Args[1]

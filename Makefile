@@ -45,7 +45,7 @@ format: format-deps
 
 .PHONY: test
 test:
-	$(call squote,$(GO)) test -C $(call squote,$(MAKEFILE_DIR)) ./...
+	$(call squote,$(GO)) test -C $(call squote,$(MAKEFILE_DIR)) -cover ./...
 
 .PHONY: build
 build:
