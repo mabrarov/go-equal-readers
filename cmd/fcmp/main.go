@@ -9,7 +9,7 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run main.go <file1> <file2>")
+		fmt.Println("Usage: fcmp <file1> <file2>")
 		os.Exit(1)
 	}
 	name1 := os.Args[1]
@@ -26,7 +26,7 @@ func main() {
 		os.Exit(2)
 	}
 	defer func() { _ = f2.Close() }()
-	eq, err := cmp.EqualReaders(4096, f1, f2)
+	eq, err := cmp.EqualReaders(4096, 2, f1, f2)
 	if err != nil {
 		fmt.Printf("Failed to compare files: %v\n", err)
 		os.Exit(2)
