@@ -6,7 +6,7 @@ import (
 	"io"
 )
 
-func EqualReaders(bufSize int, r1 io.Reader, r2 io.Reader) (bool, error) {
+func EqualReaders(bufSize int, maxZeroReads int, r1 io.Reader, r2 io.Reader) (bool, error) {
 	if bufSize <= 0 {
 		return false, errors.New("bufSize must be greater than zero")
 	}
@@ -14,6 +14,7 @@ func EqualReaders(bufSize int, r1 io.Reader, r2 io.Reader) (bool, error) {
 	var (
 		begin1, end1, size1 int
 		begin2, end2, size2 int
+		zero1, zero2        = maxZeroReads, maxZeroReads
 		eof1, eof2          bool
 		err                 error
 	)
@@ -32,6 +33,12 @@ func EqualReaders(bufSize int, r1 io.Reader, r2 io.Reader) (bool, error) {
 			if err != nil && !eof1 {
 				return false, err
 			}
+			if !eof1 && readTill-end1 > 0 && read1 == 0 {
+				if zero1 <= 0 {
+					return false, errors.New("too many reads of zero bytes without EOF in r1")
+				}
+				zero1--
+			}
 			size1 += read1
 		}
 
@@ -46,6 +53,12 @@ func EqualReaders(bufSize int, r1 io.Reader, r2 io.Reader) (bool, error) {
 			eof2 = errors.Is(err, io.EOF)
 			if err != nil && !eof2 {
 				return false, err
+			}
+			if !eof2 && readTill-end2 > 0 && read2 == 0 {
+				if zero2 <= 0 {
+					return false, errors.New("too many reads of zero bytes without EOF in r2")
+				}
+				zero2--
 			}
 			size2 += read2
 		}

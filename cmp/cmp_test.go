@@ -10,7 +10,7 @@ func TestEqualReadersWithRandomChunks(t *testing.T) {
 	const size = 100
 	reader1 := newRandomChunkReader(size)
 	reader2 := newRandomChunkReader(size)
-	eq, err := EqualReaders(10, reader1, reader2)
+	eq, err := EqualReaders(10, 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -22,7 +22,7 @@ func TestEqualReadersWithRandomChunks(t *testing.T) {
 func TestNotEqualReadersWithRandomChunks(t *testing.T) {
 	reader1 := newRandomChunkReader(100)
 	reader2 := newRandomChunkReader(120)
-	eq, err := EqualReaders(10, reader1, reader2)
+	eq, err := EqualReaders(10, 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
