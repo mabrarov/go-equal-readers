@@ -12,83 +12,83 @@ func EqualReaders(bufSize int, maxZeroReads int, r1 io.Reader, r2 io.Reader) (bo
 	}
 
 	var (
-		begin1, end1, size1 int
-		begin2, end2, size2 int
-		zero1, zero2        = maxZeroReads, maxZeroReads
-		eof1, eof2          bool
-		err                 error
+		filledStart1, filledEnd1, totalRead1 int
+		filledStart2, filledEnd2, totalRead2 int
+		zeroRead1, zeroRead2                 = maxZeroReads, maxZeroReads
+		eof1, eof2                           bool
+		buf1, buf2                           = make([]byte, bufSize), make([]byte, bufSize)
+		err                                  error
 	)
-	buf1, buf2 := make([]byte, bufSize), make([]byte, bufSize)
 
 	for {
 		read1 := 0
-		if !eof1 && end1 < bufSize {
-			readTill := bufSize
-			if eof2 && size1 <= size2 {
-				maxRead := size2 - size1 + 1
-				readTill = min(readTill, end1+maxRead)
+		if !eof1 && filledEnd1 < bufSize {
+			notFilledEnd := bufSize
+			if eof2 && totalRead1 <= totalRead2 {
+				maxRead := totalRead2 - totalRead1 + 1
+				notFilledEnd = min(notFilledEnd, filledEnd1+maxRead)
 			}
-			read1, err = r1.Read(buf1[end1:readTill])
+			read1, err = r1.Read(buf1[filledEnd1:notFilledEnd])
 			eof1 = errors.Is(err, io.EOF)
 			if err != nil && !eof1 {
 				return false, err
 			}
-			if !eof1 && readTill-end1 > 0 && read1 == 0 {
-				if zero1 <= 0 {
-					return false, errors.New("too many reads of zero bytes without EOF in r1")
+			if !eof1 && notFilledEnd-filledEnd1 > 0 && read1 == 0 {
+				if zeroRead1 <= 0 {
+					return false, errors.New("too many reads of zero byte count without EOF in r1")
 				}
-				zero1--
+				zeroRead1--
 			}
-			size1 += read1
+			totalRead1 += read1
 		}
 
 		read2 := 0
-		if !eof2 && end2 < bufSize {
-			readTill := bufSize
-			if eof1 && size2 <= size1 {
-				maxRead := size1 - size2 + 1
-				readTill = min(readTill, end2+maxRead)
+		if !eof2 && filledEnd2 < bufSize {
+			readEnd := bufSize
+			if eof1 && totalRead2 <= totalRead1 {
+				maxRead := totalRead1 - totalRead2 + 1
+				readEnd = min(readEnd, filledEnd2+maxRead)
 			}
-			read2, err = r2.Read(buf2[end2:readTill])
+			read2, err = r2.Read(buf2[filledEnd2:readEnd])
 			eof2 = errors.Is(err, io.EOF)
 			if err != nil && !eof2 {
 				return false, err
 			}
-			if !eof2 && readTill-end2 > 0 && read2 == 0 {
-				if zero2 <= 0 {
-					return false, errors.New("too many reads of zero bytes without EOF in r2")
+			if !eof2 && readEnd-filledEnd2 > 0 && read2 == 0 {
+				if zeroRead2 <= 0 {
+					return false, errors.New("too many reads of zero byte count without EOF in r2")
 				}
-				zero2--
+				zeroRead2--
 			}
-			size2 += read2
+			totalRead2 += read2
 		}
 
-		common := min(end1-begin1+read1, end2-begin2+read2)
-		if !bytes.Equal(buf1[begin1:begin1+common], buf2[begin2:begin2+common]) {
+		commonFilled := min(filledEnd1-filledStart1+read1, filledEnd2-filledStart2+read2)
+		if !bytes.Equal(buf1[filledStart1:filledStart1+commonFilled], buf2[filledStart2:filledStart2+commonFilled]) {
 			return false, nil
 		}
 
-		begin1, end1 = shiftBounds(begin1, end1, common, read1)
-		begin2, end2 = shiftBounds(begin2, end2, common, read2)
+		filledStart1, filledEnd1 = shift(filledStart1, filledEnd1, commonFilled, read1)
+		filledStart2, filledEnd2 = shift(filledStart2, filledEnd2, commonFilled, read2)
 
 		if eof1 && eof2 {
 			break
 		}
-		if eof1 && size1 < size2 {
+		if eof1 && totalRead1 < totalRead2 {
 			return false, nil
 		}
-		if eof2 && size2 < size1 {
+		if eof2 && totalRead2 < totalRead1 {
 			return false, nil
 		}
 	}
-	return end1-begin1 == 0 && end2-begin2 == 0, nil
+	return filledEnd1-filledStart1 == 0 && filledEnd2-filledStart2 == 0, nil
 }
 
-func shiftBounds(begin, end, beginOffset, endOffset int) (int, int) {
-	begin += beginOffset
-	end += endOffset
-	if begin == end {
+func shift(filledBegin, filledEnd, beginOffset, endOffset int) (int, int) {
+	filledBegin += beginOffset
+	filledEnd += endOffset
+	if filledBegin == filledEnd {
 		return 0, 0
 	}
-	return begin, end
+	return filledBegin, filledEnd
 }
