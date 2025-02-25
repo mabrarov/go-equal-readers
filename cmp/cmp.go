@@ -33,9 +33,11 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 			readEnd := getReadEnd(buf1Size, free1, size1, size2, eof2)
 			var err error
 			read1, err = reader1.Read(buf1[free1:readEnd])
-			eof1 = errors.Is(err, io.EOF)
-			if err != nil && !eof1 {
-				return false, err
+			if err != nil {
+				eof1 = errors.Is(err, io.EOF)
+				if !eof1 {
+					return false, err
+				}
 			}
 			if read1 == 0 && !eof1 && readEnd-free1 > 0 {
 				if zero1 <= 0 {
@@ -51,9 +53,11 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 			readEnd := getReadEnd(buf2Size, free2, size2, size1, eof1)
 			var err error
 			read2, err = reader2.Read(buf2[free2:readEnd])
-			eof2 = errors.Is(err, io.EOF)
-			if err != nil && !eof2 {
-				return false, err
+			if err != nil {
+				eof2 = errors.Is(err, io.EOF)
+				if !eof2 {
+					return false, err
+				}
 			}
 			if read2 == 0 && !eof2 && readEnd-free2 > 0 {
 				if zero2 <= 0 {
