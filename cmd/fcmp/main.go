@@ -7,6 +7,8 @@ import (
 	"github.com/mabrarov/go-equal-readers/cmp"
 )
 
+const bufSize = 4096
+
 func main() {
 	if len(os.Args) < 3 {
 		fmt.Println("Usage: fcmp <file1> <file2>")
@@ -26,7 +28,9 @@ func main() {
 		os.Exit(2)
 	}
 	defer func() { _ = f2.Close() }()
-	eq, err := cmp.EqualReaders(4096, 2, f1, f2)
+	buf1 := make([]byte, bufSize)
+	buf2 := make([]byte, bufSize)
+	eq, err := cmp.EqualReaders(buf1, buf2, 2, f1, f2)
 	if err != nil {
 		fmt.Printf("Failed to compare files: %v\n", err)
 		os.Exit(2)
