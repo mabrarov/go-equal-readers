@@ -24,12 +24,8 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 	)
 
 	for !eof1 || !eof2 {
-		if eof1 && size1 < size2 || eof2 && size2 < size1 {
-			return false, nil
-		}
-
 		read1 := 0
-		if !eof1 && free1 < buf1Size {
+		if !eof1 {
 			readEnd := getReadEnd(buf1Size, free1, size1, size2, eof2)
 			var err error
 			read1, err = reader1.Read(buf1[free1:readEnd])
@@ -49,7 +45,7 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 		}
 
 		read2 := 0
-		if !eof2 && free2 < buf2Size {
+		if !eof2 {
 			readEnd := getReadEnd(buf2Size, free2, size2, size1, eof1)
 			var err error
 			read2, err = reader2.Read(buf2[free2:readEnd])
@@ -68,6 +64,10 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 			size2 += read2
 		}
 
+		if eof1 && size1 < size2 || eof2 && size2 < size1 {
+			return false, nil
+		}
+
 		size := min(size1, size2)
 		if !bytes.Equal(buf1[filled1:filled1+size], buf2[filled2:filled2+size]) {
 			return false, nil
@@ -82,11 +82,15 @@ func EqualReaders(buf1, buf2 []byte, maxZeroCountReads int, reader1 io.Reader, r
 }
 
 func getReadEnd(bufSize int, free1 int, size1 int, size2 int, eof2 bool) int {
-	if eof2 && size1 <= size2 {
+	if !eof2 {
+		return bufSize
+	}
+	if size1 <= size2 {
 		maxRead := size2 - size1 + 1
 		return min(bufSize, free1+maxRead)
 	}
-	return bufSize
+	// No need to read anything
+	return free1
 }
 
 func shiftBounds(filled, filledOffset, free, freeOffset int) (int, int) {
