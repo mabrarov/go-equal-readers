@@ -28,10 +28,37 @@ func TestWrongBuf2Size(t *testing.T) {
 
 const bufSize = 10
 
-func TestDifferentReaders(t *testing.T) {
-	reader1 := bytes.NewReader(append(newIncrementArray(10), newIncrementArray(100)...))
-	reader2 := bytes.NewReader(append(newIncrementArray(10), newDecrementArray(100)...))
-	eq, err := EqualReaders(make([]byte, 10), make([]byte, 20), 0, reader1, reader2)
+func TestDifferentReadersOfSameSize(t *testing.T) {
+	equalPart := newIncrementArray(bufSize * 10)
+	reader1 := &immediateEOFReader{data: append(equalPart, newIncrementArray(100)...)}
+	reader2 := &immediateEOFReader{data: append(equalPart, newDecrementArray(100)...)}
+	eq, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 0, reader1, reader2)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+	if eq {
+		t.Fatal("expected not equal readers")
+	}
+}
+
+func TestDifferentReadersFirstReaderLarger(t *testing.T) {
+	equalPart := newIncrementArray(bufSize * 10)
+	reader1 := &immediateEOFReader{data: append(equalPart, newDecrementArray(100)...)}
+	reader2 := &immediateEOFReader{data: equalPart}
+	eq, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 0, reader1, reader2)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+	if eq {
+		t.Fatal("expected not equal readers")
+	}
+}
+
+func TestDifferentReadersSecondReaderLarger(t *testing.T) {
+	equalPart := newIncrementArray(bufSize * 10)
+	reader1 := &immediateEOFReader{data: equalPart}
+	reader2 := &immediateEOFReader{data: append(equalPart, newDecrementArray(100)...)}
+	eq, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -41,9 +68,9 @@ func TestDifferentReaders(t *testing.T) {
 }
 
 func TestEqualReadersWithRandomChunks(t *testing.T) {
-	const size = 100
-	reader1 := &randomChunkReader{data: newIncrementArray(size)}
-	reader2 := &randomChunkReader{data: newIncrementArray(size)}
+	equalPart := newIncrementArray(100)
+	reader1 := &randomChunkReader{data: equalPart}
+	reader2 := &randomChunkReader{data: equalPart}
 	eq, err := EqualReaders(make([]byte, 20), make([]byte, 10), 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -56,7 +83,7 @@ func TestEqualReadersWithRandomChunks(t *testing.T) {
 func TestDifferentReadersWithRandomChunks(t *testing.T) {
 	reader1 := &randomChunkReader{data: newIncrementArray(100)}
 	reader2 := &randomChunkReader{data: newIncrementArray(120)}
-	eq, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 0, reader1, reader2)
+	eq, err := EqualReaders(make([]byte, 20), make([]byte, 10), 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
@@ -67,8 +94,9 @@ func TestDifferentReadersWithRandomChunks(t *testing.T) {
 
 func TestEOFWithoutZeroCountRead(t *testing.T) {
 	const bufSize = 200
-	reader1 := &immediateEOFReader{data: newIncrementArray(100)}
-	reader2 := &immediateEOFReader{data: newIncrementArray(100)}
+	equalPart := newIncrementArray(bufSize / 2)
+	reader1 := &immediateEOFReader{data: equalPart}
+	reader2 := &immediateEOFReader{data: equalPart}
 	eq, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 0, reader1, reader2)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
@@ -79,8 +107,8 @@ func TestEOFWithoutZeroCountRead(t *testing.T) {
 }
 
 func TestMaxZeroCountReadWithoutEOF1(t *testing.T) {
-	reader1 := &zeroByteCountReader{data: newIncrementArray(100)}
-	reader2 := &zeroByteCountReader{data: newIncrementArray(200)}
+	reader1 := &zeroByteCountReader{data: newIncrementArray(bufSize * 10)}
+	reader2 := &zeroByteCountReader{data: newIncrementArray(bufSize * 20)}
 	_, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 2, reader1, reader2)
 	if err == nil {
 		t.Fatal("expected error due to too many zero byte count reads without EOF at reader1")
@@ -88,8 +116,8 @@ func TestMaxZeroCountReadWithoutEOF1(t *testing.T) {
 }
 
 func TestMaxZeroCountReadWithoutEOF2(t *testing.T) {
-	reader1 := &zeroByteCountReader{data: newIncrementArray(200)}
-	reader2 := &zeroByteCountReader{data: newIncrementArray(100)}
+	reader1 := &zeroByteCountReader{data: newIncrementArray(bufSize * 20)}
+	reader2 := &zeroByteCountReader{data: newIncrementArray(bufSize * 10)}
 	_, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 2, reader1, reader2)
 	if err == nil {
 		t.Fatal("expected error due to too many zero byte count reads without EOF at reader2")
@@ -98,7 +126,7 @@ func TestMaxZeroCountReadWithoutEOF2(t *testing.T) {
 
 func TestErrorRead1(t *testing.T) {
 	var reader1 errorReader
-	reader2 := bytes.NewReader(newDecrementArray(100))
+	reader2 := bytes.NewReader(newDecrementArray(bufSize * 10))
 	_, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 2, reader1, reader2)
 	if err == nil {
 		t.Fatal("expected error due to read from reader1 returned error")
@@ -106,7 +134,7 @@ func TestErrorRead1(t *testing.T) {
 }
 
 func TestErrorRead2(t *testing.T) {
-	reader1 := bytes.NewReader(newDecrementArray(100))
+	reader1 := bytes.NewReader(newDecrementArray(bufSize * 10))
 	var reader2 errorReader
 	_, err := EqualReaders(make([]byte, bufSize), make([]byte, bufSize), 2, reader1, reader2)
 	if err == nil {
@@ -150,9 +178,11 @@ func (reader *randomChunkReader) Read(buf []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	s := min(len(buf), len(reader.data))
-	n = rand.IntN(s) + 1
-	copy(buf, reader.data[:n])
-	reader.data = reader.data[n:]
+	if s != 0 {
+		n = rand.IntN(s) + 1
+		copy(buf, reader.data[:n])
+		reader.data = reader.data[n:]
+	}
 	return
 }
 
@@ -161,8 +191,10 @@ func (reader *immediateEOFReader) Read(buf []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	n = min(len(buf), len(reader.data))
-	copy(buf, reader.data[:n])
-	reader.data = reader.data[n:]
+	if n != 0 {
+		copy(buf, reader.data[:n])
+		reader.data = reader.data[n:]
+	}
 	if len(reader.data) == 0 {
 		err = io.EOF
 	}
@@ -174,8 +206,10 @@ func (reader *zeroByteCountReader) Read(buf []byte) (n int, err error) {
 		return 0, nil
 	}
 	n = min(len(buf), len(reader.data))
-	copy(buf, reader.data[:n])
-	reader.data = reader.data[n:]
+	if n != 0 {
+		copy(buf, reader.data[:n])
+		reader.data = reader.data[n:]
+	}
 	return
 }
 
